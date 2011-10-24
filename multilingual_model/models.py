@@ -8,6 +8,8 @@ from django.utils.translation import ugettext
 from django.db import models
 from django.utils.translation import get_language
 from django.core.exceptions import ObjectDoesNotExist
+from django.core.exceptions import FieldError
+
 import re
 
 # What does this line of code do?
@@ -17,6 +19,17 @@ from multilingual_model import settings
 
 # Match something like en, but also en_us
 LANGUAGE_CODE_RE = re.compile(r'_(?P<base_code>[a-z]{2,5})(_(?P<ext_code>[a-z]{2,5})){0,1}$')
+
+
+class MultilingualModelManager(models.Manager):
+    u"""
+    Tries to get() a result via the translations of the MultilingalModel if the default get() raises a FieldError
+    """
+    def get(self, *args, **kwargs):
+        try:
+            return super(MultilingualModelManager, self).get(*args, **kwargs)
+        except FieldError:
+            return self.model.translations.related.model.objects.get(**kwargs).parent
 
 
 class MultilingualTranslation(models.Model):
@@ -32,7 +45,9 @@ class MultilingualTranslation(models.Model):
 
 class MultilingualModel(models.Model):
     """Provides support for multilingual fields. """
-
+    
+    objects = MultilingualModelManager()
+    
     class Meta:
         abstract = True
 
